@@ -1,3 +1,4 @@
+from itertools import chain
 import logging
 import oauth2 as oauth
 from urlparse import urlparse
@@ -12,6 +13,7 @@ OAUTH_SIGNATURE_METHODS = getattr(settings, 'OAUTH_SIGNATURE_METHODS', ['plainte
 OAUTH_BLACKLISTED_HOSTNAMES = getattr(settings, 'OAUTH_BLACKLISTED_HOSTNAMES', [])
 
 logger = logging.getLogger('oauth_provider.utils')
+
 
 def initialize_server_request(request):
     """Shortcut for initialization."""
@@ -32,13 +34,13 @@ def initialize_server_request(request):
     if request.method == "POST" and \
         (request.META.get('CONTENT_TYPE', '').startswith("application/x-www-form-urlencoded") \
             or request.META.get('SERVER_NAME') == 'testserver'):
-        parameters = dict((k, v.encode('utf-8')) for (k, v) in request.REQUEST.iteritems())
+        parameters = dict((k, v.encode('utf-8')) for (k, v) in request.POST.iteritems())
 
     oauth_request = oauth.Request.from_request(request.method, 
-                                              request.build_absolute_uri(request.path), 
-                                              headers=auth_header,
-                                              parameters=parameters,
-                                              query_string=request.META.get('QUERY_STRING', ''))
+                                               request.build_absolute_uri(request.path),
+                                               headers=auth_header,
+                                               parameters=parameters,
+                                               query_string=request.META.get('QUERY_STRING', ''))
     if oauth_request:
         oauth_server = oauth.Server()
         if 'plaintext' in OAUTH_SIGNATURE_METHODS:
@@ -48,6 +50,7 @@ def initialize_server_request(request):
     else:
         oauth_server = None
     return oauth_server, oauth_request
+
 
 def send_oauth_error(err=None):
     """Shortcut for sending an error."""
@@ -60,15 +63,16 @@ def send_oauth_error(err=None):
         response[k] = v
     return response
 
+
 def get_oauth_request(request):
     """ Converts a Django request object into an `oauth2.Request` object. """
     headers = {}
     if 'HTTP_AUTHORIZATION' in request.META:
         headers['Authorization'] = request.META['HTTP_AUTHORIZATION']
-    return oauth.Request.from_request(request.method, 
-                                      request.build_absolute_uri(request.path), 
-                                      headers, 
-                                      dict((k, v.encode('utf-8')) for (k, v) in request.REQUEST.iteritems()))
+    return oauth.Request.from_request(
+        request.method, request.build_absolute_uri(request.path), headers,
+        dict((k, v.encode('utf-8')) for (k, v) in chain(request.GET.iteritems(), request.POST.iteritems())))
+
 
 def verify_oauth_request(request, oauth_request, consumer, token=None):
     """ Helper function to verify requests. """

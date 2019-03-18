@@ -52,13 +52,14 @@ def request_token(request):
 
 @login_required
 def user_authorization(request, form_class=AuthorizeRequestTokenForm):
-    if 'oauth_token' not in request.REQUEST:
+    oauth_token = request.GET.get('oauth_token', None) or request.POST.get('oauth_token', None)
+    if oauth_token is None:
         return HttpResponseBadRequest('No request token specified.')
 
     oauth_request = get_oauth_request(request)
 
     try:
-        request_token = store.get_request_token(request, oauth_request, request.REQUEST['oauth_token'])
+        request_token = store.get_request_token(request, oauth_request, oauth_token)
     except InvalidTokenError:
         return HttpResponseBadRequest('Invalid request token.')
 
